@@ -3,42 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Jumper - Mini Game</title>
+    <title>Cyber Jump - Endless Runner Game</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
         }
         body {
             background-color: #121212;
             color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
             overflow: hidden;
-            user-select: none;
-        }
-        h1 {
-            margin-bottom: 10px;
-            font-size: 28px;
-            letter-spacing: 2px;
-            color: #00ffcc;
-            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
         }
         #game-container {
             position: relative;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-            border: 2px solid #333;
+            box-shadow: 0 10px 30px rgba(0, 255, 204, 0.2);
+            border: 2px solid #00ffcc;
             border-radius: 8px;
             overflow: hidden;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
         }
         canvas {
             display: block;
-            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
         }
         #ui-layer {
             position: absolute;
@@ -49,7 +42,11 @@
             justify-content: space-between;
             font-size: 18px;
             font-weight: bold;
+            letter-spacing: 1px;
             pointer-events: none;
+        }
+        .score-box span {
+            color: #00ffcc;
         }
         #overlay {
             position: absolute;
@@ -57,25 +54,28 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.75);
+            background: rgba(18, 18, 18, 0.8);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
+            transition: opacity 0.2s;
         }
-        #overlay h2 {
+        #overlay h1 {
             font-size: 36px;
-            color: #ff0055;
+            color: #00ffcc;
             margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
         }
         #overlay p {
             font-size: 16px;
             color: #cccccc;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
-        button {
-            padding: 12px 28px;
+        #start-btn {
+            padding: 12px 30px;
             font-size: 18px;
             font-weight: bold;
             color: #121212;
@@ -85,63 +85,72 @@
             cursor: pointer;
             transition: transform 0.1s, background-color 0.2s;
         }
-        button:hover {
+        #start-btn:hover {
             background-color: #00cca3;
             transform: scale(1.05);
         }
+        #start-btn:active {
+            transform: scale(0.95);
+        }
         .hidden {
             display: none !important;
+        }
+        .controls-hint {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #888;
         }
     </style>
 </head>
 <body>
 
-    <h1>NEON JUMPER</h1>
-
     <div id="game-container">
         <canvas id="gameCanvas" width="800" height="350"></canvas>
         
         <div id="ui-layer">
-            <div>Skor: <span id="score">0</span></div>
-            <div>Terbaik: <span id="highScore">0</span></div>
+            <div class="score-box">SKOR: <span id="score">0</span></div>
+            <div class="score-box">TERTINGGI: <span id="high-score">0</span></div>
         </div>
 
         <div id="overlay">
-            <h2 id="overlay-title">SIAP BERMAIN?</h2>
-            <p id="overlay-desc">Tekan <b>SPASI</b>, <b>PANAH ATAS</b>, atau <b>KLIK / SENTUH LAYAR</b> untuk melompat.</p>
-            <button id="start-btn">MULAI GAME</button>
+            <h1 id="overlay-title">CYBER JUMP</h1>
+            <p id="overlay-desc">Tekan SPASI, PANAH ATAS, atau KLIK LAYAR untuk melompat!</p>
+            <button id="start-btn">MULAI MAIN</button>
         </div>
     </div>
+    <div class="controls-hint">Tips: Tahan tombol lompat sedikit lebih lama untuk lompatan lebih tinggi.</div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreEl = document.getElementById('score');
-        const highScoreEl = document.getElementById('highScore');
+        const highScoreEl = document.getElementById('high-score');
         const overlay = document.getElementById('overlay');
         const overlayTitle = document.getElementById('overlay-title');
         const overlayDesc = document.getElementById('overlay-desc');
         const startBtn = document.getElementById('start-btn');
 
-        // Pengaturan Dasar
-        let isPlaying = false;
-        let score = 0;
-        let highScore = localStorage.getItem('neonJumperHighScore') || 0;
-        highScoreEl.textContent = highScore;
+        // Pengaturan Game
+        const GRAVITY = 0.65;
+        const GROUND_Y = 290;
         let gameSpeed = 6;
+        let score = 0;
+        let highScore = localStorage.getItem('cyberJumpHighScore') || 0;
+        let isGameOver = false;
+        let isPlaying = false;
         let animationId;
+        let frameCount = 0;
 
-        const groundHeight = 50;
+        highScoreEl.textContent = Math.floor(highScore);
 
         // Objek Pemain
         const player = {
             x: 80,
-            y: canvas.height - groundHeight - 40,
-            width: 40,
+            y: GROUND_Y - 40,
+            width: 35,
             height: 40,
             dy: 0,
-            jumpForce: 13,
-            gravity: 0.65,
+            jumpForce: -13,
             grounded: false,
             color: '#00ffcc',
 
@@ -150,48 +159,52 @@
                 ctx.shadowBlur = 15;
                 ctx.shadowColor = this.color;
                 ctx.fillRect(this.x, this.y, this.width, this.height);
+                
+                // Mata karakter (detail visual)
+                ctx.fillStyle = '#121212';
                 ctx.shadowBlur = 0;
+                ctx.fillRect(this.x + 22, this.y + 8, 8, 8);
             },
 
             update() {
-                // Fisika Lompatan
-                if (this.y + this.height < canvas.height - groundHeight) {
-                    this.dy += this.gravity;
+                // Fisika lompatan & gravitasi
+                this.y += this.dy;
+
+                if (this.y + this.height < GROUND_Y) {
+                    this.dy += GRAVITY;
                     this.grounded = false;
                 } else {
                     this.dy = 0;
                     this.grounded = true;
-                    this.y = canvas.height - groundHeight - this.height;
+                    this.y = GROUND_Y - this.height;
                 }
 
-                this.y += this.dy;
                 this.draw();
             },
 
             jump() {
                 if (this.grounded) {
-                    this.dy = -this.jumpForce;
+                    this.dy = this.jumpForce;
                     this.grounded = false;
                 }
             }
         };
 
-        // Rintangan
+        // Array Rintangan
         let obstacles = [];
-        let spawnTimer = 0;
 
         class Obstacle {
             constructor() {
-                this.width = Math.floor(Math.random() * 20) + 25;
-                this.height = Math.floor(Math.random() * 35) + 35;
+                this.width = 25 + Math.random() * 20;
+                this.height = 35 + Math.random() * 35;
                 this.x = canvas.width;
-                this.y = canvas.height - groundHeight - this.height;
-                this.color = '#ff0055';
+                this.y = GROUND_Y - this.height;
+                this.color = '#ff2a6d';
             }
 
             draw() {
                 ctx.fillStyle = this.color;
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 12;
                 ctx.shadowColor = this.color;
                 ctx.fillRect(this.x, this.y, this.width, this.height);
                 ctx.shadowBlur = 0;
@@ -203,112 +216,131 @@
             }
         }
 
+        // Latar Belakang (Partikel Bintang)
+        const stars = Array.from({ length: 40 }, () => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * (GROUND_Y - 20),
+            size: Math.random() * 2 + 1,
+            speed: Math.random() * 1.5 + 0.5
+        }));
+
+        function drawBackground() {
+            // Bintang bergerak
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            stars.forEach(star => {
+                if (isPlaying) {
+                    star.x -= star.speed;
+                    if (star.x < 0) star.x = canvas.width;
+                }
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+
+            // Garis Tanah
+            ctx.strokeStyle = '#00ffcc';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y);
+            ctx.lineTo(canvas.width, GROUND_Y);
+            ctx.stroke();
+        }
+
         // Kontrol Input
         function handleJump(e) {
-            if (e.type === 'keydown' && e.code !== 'Space' && e.code !== 'ArrowUp') return;
-            if (e.type === 'keydown') e.preventDefault();
-            
-            if (isPlaying) {
-                player.jump();
+            if (e.type === 'keydown' && (e.code === 'Space' || e.code === 'ArrowUp')) {
+                e.preventDefault();
+                if (isPlaying) player.jump();
+            } else if (e.type === 'mousedown' || e.type === 'touchstart') {
+                if (isPlaying && e.target !== startBtn) {
+                    player.jump();
+                }
             }
         }
 
         window.addEventListener('keydown', handleJump);
         canvas.addEventListener('mousedown', handleJump);
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            handleJump(e);
-        }, { passive: false });
+        canvas.addEventListener('touchstart', handleJump, { passive: true });
 
-        // Fungsi Utama Game Loop
-        function updateGame() {
-            if (!isPlaying) return;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Gambar Lantai
-            ctx.fillStyle = '#0f3460';
-            ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
-            ctx.strokeStyle = '#00ffcc';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(0, canvas.height - groundHeight);
-            ctx.lineTo(canvas.width, canvas.height - groundHeight);
-            ctx.stroke();
-
-            // Update Pemain
-            player.update();
-
-            // Munculkan Rintangan
-            spawnTimer--;
-            if (spawnTimer <= 0) {
+        // Logika Utama Game
+        function spawnObstacles() {
+            // Jarak antar rintangan acak namun tetap adil
+            let minSpawnRate = Math.max(55, 110 - Math.floor(gameSpeed * 3));
+            if (frameCount % minSpawnRate === 0 && Math.random() > 0.25) {
                 obstacles.push(new Obstacle());
-                spawnTimer = Math.floor(Math.random() * 50) + 55 - Math.min(gameSpeed * 2, 25);
             }
-
-            // Update & Cek Tabrakan Rintangan
-            for (let i = obstacles.length - 1; i >= 0; i--) {
-                let obs = obstacles[i];
-                obs.update();
-
-                // Deteksi Tabrakan (AABB)
-                if (
-                    player.x < obs.x + obs.width &&
-                    player.x + player.width > obs.x &&
-                    player.y < obs.y + obs.height &&
-                    player.y + player.height > obs.y
-                ) {
-                    gameOver();
-                    return;
-                }
-
-                // Hapus rintangan yang keluar layar & tambah skor
-                if (obs.x + obs.width < 0) {
-                    obstacles.splice(i, 1);
-                    score++;
-                    scoreEl.textContent = score;
-
-                    // Tingkatkan kecepatan secara bertahap
-                    if (score % 5 === 0) {
-                        gameSpeed += 0.3;
-                    }
-                }
-            }
-
-            animationId = requestAnimationFrame(updateGame);
         }
 
-        function startGame() {
-            isPlaying = true;
-            score = 0;
-            gameSpeed = 6;
-            obstacles = [];
-            spawnTimer = 30;
-            player.y = canvas.height - groundHeight - player.height;
-            player.dy = 0;
-            
-            scoreEl.textContent = score;
-            overlay.classList.add('hidden');
-            updateGame();
+        function checkCollision(rect1, rect2) {
+            // Sedikit toleransi hitbox (4px) agar terasa lebih adil bagi pemain
+            const padding = 4;
+            return (
+                rect1.x + padding < rect2.x + rect2.width - padding &&
+                rect1.x + rect1.width - padding > rect2.x + padding &&
+                rect1.y + padding < rect2.y + rect2.height - padding &&
+                rect1.y + rect1.height - padding > rect2.y + padding
+            );
         }
 
         function gameOver() {
             isPlaying = false;
+            isGameOver = true;
             cancelAnimationFrame(animationId);
 
             if (score > highScore) {
-                highScore = score;
-                localStorage.setItem('neonJumperHighScore', highScore);
+                highScore = Math.floor(score);
+                localStorage.setItem('cyberJumpHighScore', highScore);
                 highScoreEl.textContent = highScore;
             }
 
             overlayTitle.textContent = 'GAME OVER!';
-            overlayDesc.innerHTML = `Skor Akhir Kamu: <b>${score}</b><br>Klik tombol di bawah untuk main lagi.`;
+            overlayTitle.style.color = '#ff2a6d';
+            overlayDesc.textContent = `Skor Akhir Kamu: ${Math.floor(score)}`;
             startBtn.textContent = 'MAIN LAGI';
             overlay.classList.remove('hidden');
         }
 
-        startBtn.addEventListener('click', startGame);
-    </script>
-</body>
-</html>
+        function resetGame() {
+            obstacles = [];
+            score = 0;
+            gameSpeed = 6;
+            frameCount = 0;
+            player.y = GROUND_Y - player.height;
+            player.dy = 0;
+            isGameOver = false;
+            isPlaying = true;
+            scoreEl.textContent = '0';
+            overlay.classList.add('hidden');
+            animate();
+        }
+
+        function animate() {
+            if (!isPlaying) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+
+            player.update();
+            spawnObstacles();
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let obs = obstacles[i];
+                obs.update();
+
+                // Deteksi Tabrakan
+                if (checkCollision(player, obs)) {
+                    gameOver();
+                    return;
+                }
+
+                // Hapus rintangan yang sudah lewat layar
+                if (obs.x + obs.width < 0) {
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            // Tambah skor & tingkatkan kecepatan secara bertahap
+            score += 0.15;
+            scoreEl.textContent = Math.floor(score);
+            gameSpeed += 0.0015;
+            frameCount++;
+
+            animationId = requestAnimationFrame(
