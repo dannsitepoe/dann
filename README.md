@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -343,4 +342,14 @@
             gameSpeed += 0.0015;
             frameCount++;
 
-            animationId = requestAnimationFrame(
+            animationId = requestAnimationFrame(animate);
+        }
+
+        startBtn.addEventListener('click', resetGame);
+
+        // Gambar tampilan awal sebelum dimulai
+        drawBackground();
+        player.draw();
+    </script>
+</body>
+</html>
